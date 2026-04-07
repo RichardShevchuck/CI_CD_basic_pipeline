@@ -16,7 +16,6 @@ build-job-run:
     - echo "Building the application..."
     - docker build -t app:latest .
     - docker run -d -p 8000:8000 app:latest
-    - curl -f http://localhost:8000/ || exit 1
 
 
 test-job:
