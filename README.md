@@ -1,98 +1,67 @@
-# Solo Project – FastAPI + Docker + CI/CD
+# GitLab CI/CD Pipeline — FastAPI
 
-This is a simple backend project built with FastAPI and deployed using Docker and GitLab CI/CD.
+A minimal FastAPI Python application with a fully automated 3-stage GitLab CI/CD pipeline: test → build → deploy to a VPS via SSH.
 
-The goal of this project is to demonstrate a basic DevOps workflow, including application development, containerization, automated testing, and deployment to a VPS server.
+## Pipeline
 
----
+```
+git push → GitLab CI
+              │
+        ┌─────▼──────┐
+        │    test     │  pytest, python:3.12
+        └─────┬───────┘
+              │
+        ┌─────▼──────┐
+        │    build    │  Docker build + push to GitLab Registry
+        └─────┬───────┘    (tags: commit SHA + latest)
+              │
+        ┌─────▼──────┐
+        │   deploy    │  SSH → pull latest image → restart container
+        └─────────────┘
+```
 
-## Stack
+Runs only on the `main` branch.
 
-- FastAPI (Python backend)
-- Docker (containerization)
-- GitLab CI/CD (automation)
-- systemd (service management on VPS)
-- SSH (remote deployment)
+## Tech Stack
 
----
-
-## Application
-
-The application is a minimal FastAPI service with two endpoints:
-
-- Root endpoint returns a simple JSON response
-- Health endpoint is used for service checks
-
----
-
-## Local Development
-
-The project can be run locally using a Python virtual environment. Dependencies are installed from the requirements file, and the application is started using Uvicorn.
-
----
-
-## Testing
-
-Tests are implemented using pytest and FastAPI TestClient.
-
-They run without starting a real server, which makes them fast and reliable for CI environments.
-
----
-
-## Docker
-
-The application is containerized using Docker.
-
-The Docker image is built from the project files and runs the FastAPI app inside a container.
-
----
-
-## CI/CD Pipeline
-
-The GitLab pipeline consists of three stages:
-
-1. Test – installs dependencies and runs tests  
-2. Build – builds the Docker image and pushes it to the registry  
-3. Deploy – connects to the VPS via SSH and updates the running container  
-
-Each build produces two tags:
-- A unique tag based on commit SHA  
-- A latest tag for the most recent version  
-
----
-
-## Deployment
-
-Deployment is automated via GitLab CI.
-
-The pipeline connects to the server using SSH, pulls the latest Docker image, stops the old container, and starts a new one.
-
----
-
-## Configuration
-
-The deployment requires several CI/CD variables:
-
-- SSH private key for authentication  
-- Server host and port  
-- SSH user  
-
----
+- **App:** Python 3.12, FastAPI, Uvicorn
+- **Tests:** pytest, FastAPI TestClient
+- **Container:** Docker, GitLab Container Registry
+- **CI/CD:** GitLab CI (`.gitlab-ci.yml`)
+- **Deploy target:** Linux VPS (any — systemd not required, just Docker)
 
 ## Project Structure
 
-The project is organized into application code, tests, and configuration files for Docker and CI/CD.
+```
+.gitlab-ci.yml     # Pipeline definition
+Dockerfile         # Multi-stage build (python:3.12-slim)
+app/               # FastAPI application
+tests/             # pytest test suite
+requirements.txt
+```
 
----
+## CI Variables Required
 
-## Notes
+Set these in **GitLab → Settings → CI/CD → Variables**:
 
-- The pipeline runs only for the main branch  
-- The deployment process is fully automated  
-- The setup follows basic DevOps best practices  
+| Variable | Description |
+|----------|-------------|
+| `SSH_PRIVATE_KEY` | Private key for SSH access to the VPS |
+| `SSH_HOST` | VPS IP address or hostname |
+| `SSH_USER` | SSH username |
 
----
+## Local Development
 
-## Author
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 
-Richard Shevchuk
+# Run tests
+pytest
+```
+
+## Key Concepts
+
+- **Docker-in-Docker (dind)** for building images inside GitLab CI
+- **Two image tags per build** — commit SHA (immutable, traceable) + `latest` (always points to newest)
+- **SSH deploy pattern** — pull latest image, stop old container, start new one on port 80
